@@ -1,3 +1,5 @@
+> :warning: **Shamelessly borrowed and enhanced based on rest-smtp-sink**  The README below is theirs.
+
 [rest-smtp-sink](https://www.npmjs.org/package/rest-smtp-sink)
 ==============
 

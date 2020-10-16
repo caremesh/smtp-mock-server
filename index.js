@@ -25,7 +25,7 @@ function RestSmtpSink(options) {
   this.setMaxListeners(Infinity);
 }
 
-RestSmtpSink.prototype.start = async function() {
+RestSmtpSink.prototype.start = async function () {
   const self = this;
 
   await this.createSchema();
@@ -33,12 +33,12 @@ RestSmtpSink.prototype.start = async function() {
   self.smtp.listen(self.smtpport);
   self.emit("info", "SMTP server listening on port " + self.smtpport);
 
-  self.server = self.createWebServer().listen(self.httpport, function() {
+  self.server = self.createWebServer().listen(self.httpport, function () {
     self.emit("info", "HTTP server listening on port " + self.httpport);
   });
 };
 
-RestSmtpSink.prototype.createSchema = async function() {
+RestSmtpSink.prototype.createSchema = async function () {
   const self = this;
 
   self.db = knex({
@@ -50,7 +50,7 @@ RestSmtpSink.prototype.createSchema = async function() {
   });
 
   try {
-    await self.db.schema.createTable("emails", function(table) {
+    await self.db.schema.createTable("emails", function (table) {
       table.increments();
       table.timestamps();
       [
@@ -69,7 +69,7 @@ RestSmtpSink.prototype.createSchema = async function() {
   }
 };
 
-RestSmtpSink.prototype.createSmtpSever = function() {
+RestSmtpSink.prototype.createSmtpSever = function () {
   const self = this;
 
   self.smtp = simplesmtp.createServer({
@@ -79,9 +79,9 @@ RestSmtpSink.prototype.createSmtpSever = function() {
     disableDNSValidation: true
   });
 
-  self.smtp.on("startData", function(connection) {
+  self.smtp.on("startData", function (connection) {
     connection.mailparser = new MailParser();
-    connection.mailparser.on("end", async function(mail_object) {
+    connection.mailparser.on("end", async function (mail_object) {
       const record = await self.db("emails").insert({
         created_at: new Date(),
         updated_at: new Date(),
@@ -105,17 +105,17 @@ RestSmtpSink.prototype.createSmtpSever = function() {
     });
   });
 
-  self.smtp.on("data", function(connection, chunk) {
+  self.smtp.on("data", function (connection, chunk) {
     connection.mailparser.write(chunk);
   });
 
-  self.smtp.on("dataReady", function(connection, callback) {
+  self.smtp.on("dataReady", function (connection, callback) {
     connection.donecallback = callback;
     connection.mailparser.end();
   });
 };
 
-RestSmtpSink.prototype.deserialize = function(o) {
+RestSmtpSink.prototype.deserialize = function (o) {
   o.html = JSON.parse(o.html);
   o.text = JSON.parse(o.text);
   o.headers = JSON.parse(o.headers);
@@ -128,7 +128,7 @@ RestSmtpSink.prototype.deserialize = function(o) {
   return o;
 };
 
-RestSmtpSink.prototype.createWebServer = function() {
+RestSmtpSink.prototype.createWebServer = function () {
   const self = this;
   const express = require("express");
   const app = express();
@@ -146,15 +146,15 @@ RestSmtpSink.prototype.createWebServer = function() {
 
       res.write(
         "rest-smtp-sink" +
-          "<br><br>SMTP server listening on port " +
-          _.escape(self.smtpport) +
-          "; HTTP listening on port " +
-          _.escape(self.httpport) +
-          "<br>Note: This page dynamically updates as email arrives." +
-          "<br><br>API" +
-          '<br><a href="/api/email">All Emails ( /api/email )</a>' +
-          '<br><a href="/api/email">All Email, streamed, may load faster ( /api/email/stream )</a>' +
-          '<br><a href="/api/email/latest">Last received Email</a> ( /api/email/latest )'
+        "<br><br>SMTP server listening on port " +
+        _.escape(self.smtpport) +
+        "; HTTP listening on port " +
+        _.escape(self.httpport) +
+        "<br>Note: This page dynamically updates as email arrives." +
+        "<br><br>API" +
+        '<br><a href="/api/email">All Emails ( /api/email )</a>' +
+        '<br><a href="/api/email">All Email, streamed, may load faster ( /api/email/stream )</a>' +
+        '<br><a href="/api/email/latest">Last received Email</a> ( /api/email/latest )'
       );
 
       res.write(
@@ -189,19 +189,19 @@ RestSmtpSink.prototype.createWebServer = function() {
 
       const resp = await self.db.select("*").from("emails");
       resp.forEach(self.deserialize);
-      resp.forEach(function(item) {
+      resp.forEach(function (item) {
         res.write(render_item(item));
         res.flush();
       });
 
-      const listener = function(item) {
+      const listener = function (item) {
         res.write(render_item(item));
         res.flush();
       };
 
       self.on("email", listener);
 
-      req.on("close", function() {
+      req.on("close", function () {
         self.removeListener("email", listener);
       });
     })
@@ -226,7 +226,7 @@ RestSmtpSink.prototype.createWebServer = function() {
 
       stream.pipe(JSONStream.stringify("[", ",", "]")).pipe(res);
 
-      stream.on("end", function() {
+      stream.on("end", function () {
         res.end();
       });
     })
