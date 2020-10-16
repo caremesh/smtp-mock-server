@@ -10,35 +10,61 @@ const inherits = require("inherits");
 const _ = require("lodash");
 const JSONStream = require("JSONStream");
 const asyncHandler = require("express-async-handler");
+const SmtpResponder = require("./smtp-responder");
+const Promise = require('bluebird');
 
-module.exports = RestSmtpSink;
+module.exports = caremeshSmtpMock;
 
-inherits(RestSmtpSink, EventEmitter);
+inherits(caremeshSmtpMock, EventEmitter);
 
-function RestSmtpSink(options) {
+function caremeshSmtpMock(options) {
   EventEmitter.call(this);
   const self = this;
   self.smtpport = options.smtp || 2525;
   self.httpport = options.listen || 2526;
-  self.filename = options.file || "rest-smtp-sink.sqlite";
+  self.filename = options.file || "caremesh-smtp-mock.sqlite";
+  self.smarthost = options.smarthost || 'smtp.svc.cluster.local';
+  self.smarthostPort = options.smarthostPort || 465;
+  self.smarthostSsl = options.smarthostSsl || (self.smarthostPort == 465);
+
+  self.responder = new SmtpResponder(self.smarthost, self.smarthostPort, self.smarthostSsl);
 
   this.setMaxListeners(Infinity);
 }
 
-RestSmtpSink.prototype.start = async function () {
+caremeshSmtpMock.prototype.start = function () {
   const self = this;
 
-  await this.createSchema();
-  self.createSmtpSever();
-  self.smtp.listen(self.smtpport);
-  self.emit("info", "SMTP server listening on port " + self.smtpport);
+  return new Promise(async(resolve, reject) => {
+    await this.createSchema();
 
-  self.server = self.createWebServer().listen(self.httpport, function () {
-    self.emit("info", "HTTP server listening on port " + self.httpport);
-  });
+    self.createSmtpSever();
+    self.smtp.listen(self.smtpport);
+    self.emit("info", "SMTP server listening on port " + self.smtpport);
+
+    self.server = self.createWebServer().listen(self.httpport, function () {
+      self.emit("info", "HTTP server listening on port " + self.httpport);
+      resolve();
+    });
+  })
 };
 
-RestSmtpSink.prototype.createSchema = async function () {
+caremeshSmtpMock.prototype.stop = function() {
+  const self = this;
+  return new Promise(function(resolve, reject) {
+    console.log(`Stopping`);
+    self.smtp.end(function() {
+      console.log(`Stopped SMTP server`);
+      self.server.stop(function() {
+        console.log(`Stopped HTTP server`);
+        resolve();
+      });
+    });
+  })
+    
+}
+
+caremeshSmtpMock.prototype.createSchema = async function () {
   const self = this;
 
   self.db = knex({
@@ -69,13 +95,13 @@ RestSmtpSink.prototype.createSchema = async function () {
   }
 };
 
-RestSmtpSink.prototype.createSmtpSever = function () {
+caremeshSmtpMock.prototype.createSmtpSever = function () {
   const self = this;
 
   self.smtp = simplesmtp.createServer({
     enableAuthentication: true,
     requireAuthentication: false,
-    SMTPBanner: "rest-smtp-sink",
+    SMTPBanner: "caremesh-smtp-mock",
     disableDNSValidation: true
   });
 
@@ -101,6 +127,7 @@ RestSmtpSink.prototype.createSmtpSever = function () {
         .where("id", "=", record[0]); // primary key from DB
 
       self.emit("email", self.deserialize(mail[0]));
+
       connection.donecallback(null, record);
     });
   });
@@ -115,7 +142,7 @@ RestSmtpSink.prototype.createSmtpSever = function () {
   });
 };
 
-RestSmtpSink.prototype.deserialize = function (o) {
+caremeshSmtpMock.prototype.deserialize = function (o) {
   o.html = JSON.parse(o.html);
   o.text = JSON.parse(o.text);
   o.headers = JSON.parse(o.headers);
@@ -128,7 +155,7 @@ RestSmtpSink.prototype.deserialize = function (o) {
   return o;
 };
 
-RestSmtpSink.prototype.createWebServer = function () {
+caremeshSmtpMock.prototype.createWebServer = function () {
   const self = this;
   const express = require("express");
   const app = express();
@@ -145,7 +172,7 @@ RestSmtpSink.prototype.createWebServer = function () {
       // implicitly when a browser renders that markup.
 
       res.write(
-        "rest-smtp-sink" +
+        "caremesh-smtp-mock" +
         "<br><br>SMTP server listening on port " +
         _.escape(self.smtpport) +
         "; HTTP listening on port " +

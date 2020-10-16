@@ -1,0 +1,38 @@
+- match:
+    subject: "%%fail%%"
+  replies:
+    - type: mdn
+      status: failed
+- match:
+    subject: "%%processed%%"
+  replies:
+    - type: mdn
+      status: processed
+- match:
+    subject: "%%dispatched%%"
+  replies:
+    - type: mdn
+      status: processed
+    - type: mdn
+      status: dispatched
+- match:
+    subject: "%%nodispatch%%"
+  replies:
+    - type: mdn
+      status: processed
+- match:
+    subject: "%%acknowldge%%"
+  replies:
+    - type: message
+      subject: "Re: ${subject}"
+      body: |
+        Responding to message at ${date}
+
+        From: ${from}
+        To: ${to}
+        Cc: ${cc}
+        Subject: ${date}
+
+        Body
+        ----
+        ${body}
